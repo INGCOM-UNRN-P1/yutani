@@ -1,0 +1,59 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "yutani"
+version = "0.1.0"
+description = "Núcleo común de las herramientas de Programación 1: contrato de línea de comandos, doctor, salidas JSON y para dredd, y textos de Typer en español"
+readme = "README.md"
+license = {text = "GPL-3.0-or-later"}
+authors = [
+    {name = "Martín René Vilugrón", email = "martinvilu@gmail.com"}
+]
+maintainers = [
+    {name = "Programación I [B6003] - UNRN Andina"}
+]
+requires-python = ">=3.11"
+keywords = ["education", "c-programming", "pedagogical-tools", "unrn"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Education",
+    "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Education",
+]
+dependencies = [
+    "typer>=0.12",
+    "rich>=13.0.0",
+]
+
+[project.optional-dependencies]
+# Captura de yaml.YAMLError como error de datos en TyperConErrores.
+yaml = ["pyyaml>=6.0"]
+# yutani.testing (test de contrato reutilizable).
+testing = ["pytest>=8.0"]
+
+[project.urls]
+Homepage = "https://github.com/INGCOM-UNRN-P1/yutani"
+Repository = "https://github.com/INGCOM-UNRN-P1/yutani.git"
+Issues = "https://github.com/INGCOM-UNRN-P1/yutani/issues"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0",
+    "pyyaml>=6.0",
+]
+
+[tool.ruff.lint.flake8-bugbear]
+# Typer declara los parámetros con llamadas en los valores por defecto.
+extend-immutable-calls = ["typer.Argument", "typer.Option"]
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true

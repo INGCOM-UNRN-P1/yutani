@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    name: Test (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+        python-version: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ matrix.python-version }}
+          enable-cache: true
+
+      - name: Sincronizar dependencias
+        run: uv sync --all-extras
+
+      - name: Ejecutar suite de pruebas
+        run: uv run pytest -q
+
+  calidad:
+    name: Errores de Python, tipos y dependencias vulnerables
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.12"
+
+      - name: ruff
+        run: uvx ruff check --select E9,F63,F7,F82,F401,B .
+
+      - name: mypy
+        run: uv run --with mypy --with types-PyYAML mypy src
+
+      - name: Dependencias vulnerables (pip-audit)
+        run: |
+          uv export --no-emit-project --all-extras --all-groups --no-hashes -o requirements-audit.txt
+          uvx pip-audit --no-deps --disable-pip -r requirements-audit.txt
