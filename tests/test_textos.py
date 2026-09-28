@@ -6,6 +6,8 @@ from pathlib import Path
 
 import pytest
 import typer
+import typer.rich_utils
+from rich.text import Text
 from typer.testing import CliRunner
 
 from yutani.cli import crear_app
@@ -27,16 +29,28 @@ def _app():
     return app
 
 
-def test_titulos_de_la_ayuda():
-    salida = runner.invoke(_app(), ["--help"], env={"COLUMNS": "120"}).output
+@pytest.fixture(params=[None, True], ids=["terminal-normal", "terminal-forzada"])
+def modo_terminal(request, monkeypatch):
+    """Con GITHUB_ACTIONS, FORCE_COLOR o PY_COLORS, Typer fuerza la terminal y resalta la salida con
+    códigos ANSI aunque no sea una tty (así corre el CI): los textos se comparan en los dos modos."""
+    monkeypatch.setattr(typer.rich_utils, "FORCE_TERMINAL", request.param)
+
+
+def _salida(resultado) -> str:
+    """La salida sin estilos: el resaltado parte `--faltante` en `-` y `-faltante` con códigos ANSI."""
+    return Text.from_ansi(resultado.output).plain
+
+
+def test_titulos_de_la_ayuda(modo_terminal):
+    salida = _salida(runner.invoke(_app(), ["--help"], env={"COLUMNS": "120"}))
     assert "Comandos" in salida and "Opciones" in salida
     assert "Uso: " in salida
     assert "Muestra esta ayuda y sale." in salida
     assert "Commands" not in salida and "Show this message" not in salida
 
 
-def test_ayuda_de_un_comando():
-    salida = runner.invoke(_app(), ["analizar", "--help"], env={"COLUMNS": "120"}).output
+def test_ayuda_de_un_comando(modo_terminal):
+    salida = _salida(runner.invoke(_app(), ["analizar", "--help"], env={"COLUMNS": "120"}))
     assert "Argumentos" in salida
     assert "[obligatorio]" in salida
     assert "[por defecto: 1]" in salida
@@ -48,20 +62,20 @@ def test_ayuda_de_un_comando():
     (["analizar", "no_existe.c"], "No existe 'no_existe.c'."),
     (["analizar", "--faltante"], "No existe la opción --faltante"),
 ])
-def test_errores_de_uso(args, esperado):
+def test_errores_de_uso(modo_terminal, args, esperado):
     resultado = runner.invoke(_app(), args, env={"COLUMNS": "200"})
     assert resultado.exit_code == 2
-    assert esperado in resultado.output
-    assert "para ver la ayuda" in resultado.output
+    assert esperado in _salida(resultado)
+    assert "para ver la ayuda" in _salida(resultado)
 
 
-def test_valor_invalido(tmp_path):
+def test_valor_invalido(modo_terminal, tmp_path):
     archivo = tmp_path / "a.c"
     archivo.write_text("int x;")
     resultado = runner.invoke(_app(), ["analizar", str(archivo), "-n", "tres"], env={"COLUMNS": "200"})
     assert resultado.exit_code == 2
-    assert "Valor inválido para" in resultado.output
-    assert "'tres' no es un número entero." in resultado.output
+    assert "Valor inválido para" in _salida(resultado)
+    assert "'tres' no es un número entero." in _salida(resultado)
 
 
 @pytest.mark.parametrize("mensaje, esperado", [
