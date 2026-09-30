@@ -11,7 +11,7 @@ herramientas**, para que yutani no se convierta en otro monolito.
 | `yutani.cli` | App Typer con el contrato de LINEAMIENTOS §3.2: `-h/--help`, `--version/-v`, y `TyperConErrores`, que muestra los errores de datos (YAML mal formado, ruta inexistente, archivo que ya existe…) como un mensaje en español con exit 1 en lugar de un traceback | Contrato copiado en 41 herramientas (N-ECO-04); `errores.py` copiado en deckard, scorm-tools y dredd (N-ECO-05) |
 | `yutani.doctor` | Chequeos de binarios y módulos, tabla legible y `doctor --json` con el sobre común (`schema_version`, `ok`, `chequeos`) | Un doctor distinto por herramienta |
 | `yutani.report` | Sobre JSON versionado (`sobre`, `emitir_json`) y secciones para dredd (`<!-- dredd-section: … -->`) con su lector | Encabezado copiado en 28 herramientas |
-| `yutani.textos` | Ayuda y errores de Typer/Click en español («Comandos», «Falta el argumento…», «No existe el comando…») | N-ECO-14 |
+| `yutani.textos` | Ayuda y errores de Typer/Click en español («Uso: … [OPCIONES] COMANDO [ARGUMENTOS]...», «Comandos», «Falta el argumento…», «No existe el comando…», la ayuda de `--install-completion`/`--show-completion`) | N-ECO-14 |
 | `yutani.testing` | Test de contrato parametrizado para pegar en cada repo | `tests/test_contrato_cli.py` copiado en 38 repos |
 
 ## Instalación

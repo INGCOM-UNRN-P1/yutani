@@ -49,6 +49,19 @@ def test_titulos_de_la_ayuda(modo_terminal):
     assert "Commands" not in salida and "Show this message" not in salida
 
 
+def test_opciones_de_autocompletado_y_marcadores_del_uso(modo_terminal):
+    salida = _salida(runner.invoke(_app(), ["--help"], env={"COLUMNS": "150"}))
+    assert "Uso: demo [OPCIONES] COMANDO [ARGUMENTOS]..." in " ".join(salida.split())
+    assert "Instala el autocompletado" in salida
+    assert "Muestra el autocompletado" in salida
+    assert "[OPTIONS]" not in salida and "Install completion" not in salida
+
+
+def test_uso_de_un_comando(modo_terminal):
+    salida = _salida(runner.invoke(_app(), ["analizar", "--help"], env={"COLUMNS": "150"}))
+    assert "Uso: demo analizar [OPCIONES] " in " ".join(salida.split())
+
+
 def test_ayuda_de_un_comando(modo_terminal):
     salida = _salida(runner.invoke(_app(), ["analizar", "--help"], env={"COLUMNS": "120"}))
     assert "Argumentos" in salida

@@ -32,6 +32,18 @@ TITULOS = {
 AYUDA_HELP = "Muestra esta ayuda y sale."
 PREFIJO_USO = "Uso: "
 
+# Ayuda de las opciones de autocompletado que agrega Typer a la app raíz.
+AYUDAS = {
+    "Install completion for the current shell.": "Instala el autocompletado para la terminal actual.",
+    "Show completion for the current shell, to copy it or customize the installation.":
+        "Muestra el autocompletado para la terminal actual, para copiarlo o adaptarlo.",
+    "Install completion for the specified shell.": "Instala el autocompletado para la terminal indicada.",
+    "Show completion for the specified shell, to copy it or customize the installation.":
+        "Muestra el autocompletado para la terminal indicada, para copiarlo o adaptarlo.",
+}
+# Marcadores de la línea de uso («Uso: gaff [OPTIONS] COMMAND [ARGS]...»).
+MARCADORES_USO = {"[OPTIONS]": "[OPCIONES]", "COMMAND [ARGS]...": "COMANDO [ARGUMENTOS]..."}
+
 # (patrón, reemplazo); se aplican en orden sobre el mensaje completo.
 MENSAJES: list[tuple[re.Pattern[str], str]] = [(re.compile(p), r) for p, r in [
     (r"Missing argument '(?P<x>[^']+)'\.", r"Falta el argumento '\g<x>'."),
@@ -142,5 +154,22 @@ def traducir() -> None:
             return opcion
         return get_help_option
 
+    def parametros_en_espanol(original):
+        def get_params(self, ctx):
+            parametros = original(self, ctx)
+            for parametro in parametros:
+                ayuda = getattr(parametro, "help", None)
+                if ayuda in AYUDAS:
+                    parametro.help = AYUDAS[ayuda]
+            return parametros
+        return get_params
+
+    def uso_en_espanol(original):
+        def collect_usage_pieces(self, ctx):
+            return [MARCADORES_USO.get(pieza, pieza) for pieza in original(self, ctx)]
+        return collect_usage_pieces
+
     for clase in (typer.core.TyperCommand, typer.core.TyperGroup):
         _envolver(clase, "get_help_option", ayuda_en_espanol)
+        _envolver(clase, "get_params", parametros_en_espanol)
+        _envolver(clase, "collect_usage_pieces", uso_en_espanol)
