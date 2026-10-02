@@ -46,12 +46,33 @@ ERRORES_DE_DATOS: tuple[type[BaseException], ...] = _ERRORES_YAML + (
 _err_console = Console(stderr=True)
 
 
+# Los problemas que informa PyYAML, en español: antes quedaba «mapping values are not allowed here».
+_PROBLEMAS_YAML = (
+    ("found character '\\t' that cannot start any token", "hay una tabulación: YAML se indenta solo con espacios"),
+    ("found character '\t' that cannot start any token", "hay una tabulación: YAML se indenta solo con espacios"),
+    ("mapping values are not allowed here",
+     "hay un «:» donde no corresponde (¿falta un espacio después de «:» o comillas alrededor del texto?)"),
+    ("found unexpected end of stream", "el archivo termina con una comilla, un corchete o una llave sin cerrar"),
+    ("could not find expected ':'", "falta el «:» entre una clave y su valor"),
+    ("expected <block end>, but found", "la indentación no es consistente con la de las líneas anteriores"),
+    ("did not find expected key", "la indentación no es consistente con la de las líneas anteriores"),
+    ("did not find expected node content", "falta un valor (por ejemplo, después de un «-» de lista)"),
+    ("found duplicate anchor", "hay un ancla (&nombre) repetida"),
+    ("found undefined alias", "se usa un alias (*nombre) que no está definido"),
+)
+
+
+def traducir_problema_yaml(problema: str) -> str:
+    """El problema de un error de PyYAML, en español (o tal cual si no se conoce)."""
+    return next((es for en, es in _PROBLEMAS_YAML if en in problema), problema)
+
+
 def describir_error(error: BaseException) -> str:
     """Mensaje en español para un error de datos."""
     ruta = getattr(error, "filename", None)
     if yaml is not None and isinstance(error, yaml.YAMLError):
         marca = getattr(error, "problem_mark", None)
-        problema = getattr(error, "problem", None) or str(error)
+        problema = traducir_problema_yaml(getattr(error, "problem", None) or str(error))
         donde = f" (línea {marca.line + 1}, columna {marca.column + 1})" if marca is not None else ""
         return f"el archivo no es un YAML válido: {problema}{donde}."
     if isinstance(error, FileExistsError):

@@ -129,3 +129,19 @@ def test_app_sin_callback_de_crear_app_acepta_opcion_version():
 
     resultado = runner.invoke(app, ["-v"])
     assert resultado.output.strip() == "otra 0.9"
+
+
+@pytest.mark.parametrize("texto, esperado", [
+    ("a: b: c\n", "hay un «:» donde no corresponde"),
+    ('a: "sin cerrar\n', "comilla"),
+    ("a: 1\n\tb: 2\n", "tabulación"),
+])
+def test_errores_de_yaml_en_espanol(texto, esperado):
+    import yaml
+
+    from yutani.cli import describir_error
+
+    with pytest.raises(yaml.YAMLError) as exc:
+        yaml.safe_load(texto)
+    mensaje = describir_error(exc.value)
+    assert esperado in mensaje and "(línea" in mensaje
