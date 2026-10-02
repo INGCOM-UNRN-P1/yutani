@@ -7,7 +7,8 @@ devolución de cada entrega, con el encabezado del contrato de integración
 
     <!-- dredd-section: gaff, tool=gaff, version=1.0.0, status=ok -->
 
-`leer_secciones_dredd` hace el camino inverso.
+`leer_secciones_dredd` hace el camino inverso. La forma común de cada hallazgo (id, categoría,
+severidad y enlace al apunte) está en `yutani.hallazgos` y se reexporta acá.
 """
 
 from __future__ import annotations
@@ -17,6 +18,15 @@ import re
 from typing import Any
 
 import typer
+
+from yutani.hallazgos import (  # noqa: F401  (reexportados)
+    CATEGORIAS,
+    SEVERIDADES,
+    enlace_apunte,
+    hallazgo,
+    normalizar_severidad,
+    resumen_por_categoria,
+)
 
 SCHEMA_VERSION = "1.0.0"
 CONTRATO_DREDD = "1.0.0"
