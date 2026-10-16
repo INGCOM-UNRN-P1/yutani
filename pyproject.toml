@@ -35,6 +35,9 @@ dependencies = [
 yaml = ["pyyaml>=6.0"]
 # yutani.testing (test de contrato reutilizable).
 testing = ["pytest>=8.0"]
+# yutani.ia: los SDK de los proveedores remotos (local y opencode no necesitan nada).
+google = ["google-genai>=2.4.0"]
+claude = ["anthropic>=1.11.0"]
 
 [project.urls]
 Homepage = "https://github.com/INGCOM-UNRN-P1/yutani"
