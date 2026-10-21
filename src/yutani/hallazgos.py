@@ -8,15 +8,26 @@ al apunte. Un hallazgo común tiene:
   versiones para poder contarlo de un cuatrimestre a otro;
 - `categoria`: una de `CATEGORIAS`, los temas del programa de P1;
 - `severidad`: una de `SEVERIDADES` (`normalizar_severidad` traduce las de cada herramienta);
-- `enlace`: la página del apunte (la regla exacta, si el código es una regla de estilo `0x....h`).
+- `enlace`: la página del apunte (la regla exacta, si el código es una regla de estilo `0x....h`);
+- `archivo`: la ruta relativa al directorio de trabajo, con `/` y sin `./` (`ruta_archivo`), para que
+  jonesy y los demás clientes la resuelvan igual venga de la herramienta que venga.
+
+Los clientes leen sólo la lista plana `hallazgos` de cada salida `--json`, con las claves de
+`CLAVES` (`explicacion` y `sugerencia` son opcionales). `validar_salida` la verifica (también
+`python -m yutani.hallazgos salida.json`, para el CI de punta a punta) y `ESQUEMA` es el mismo
+contrato como JSON Schema.
 
 `resumen_por_categoria` agrega una lista de hallazgos (de una entrega o de toda una cohorte).
 """
 
 from __future__ import annotations
 
+import json
+import os
 import re
+import sys
 from collections import Counter
+from pathlib import Path, PureWindowsPath
 from typing import Any, Iterable
 
 URL_APUNTE = "https://ingcom-unrn-p1.github.io"
@@ -85,6 +96,29 @@ def enlace_apunte(categoria: str, codigo: str | None = None) -> str | None:
     return f"{URL_APUNTE}/{pagina}" if pagina else None
 
 
+def ruta_archivo(ruta: str | os.PathLike[str] | None, base: str | os.PathLike[str] | None = None) -> str | None:
+    """La ruta de un hallazgo como la esperan los clientes: relativa a `base` (el directorio de
+    trabajo, por defecto) si está adentro, con `/` y sin `./`; si está afuera (un header del
+    sistema), absoluta con `/`. Cada herramienta la informaba a su manera (daedalus y hal absoluta,
+    ripley sólo el nombre, gaff relativa) y jonesy mostraba el mismo hallazgo dos veces."""
+    if ruta is None or str(ruta) == "":
+        return None
+    texto = str(ruta)
+    if "\\" in texto and not texto.startswith("/"):
+        texto = PureWindowsPath(texto).as_posix()
+    p = Path(texto)
+    raiz = Path(base) if base is not None else Path.cwd()
+    if p.is_absolute():
+        try:
+            relativa = os.path.relpath(p, raiz)
+        except ValueError:  # otra unidad en Windows
+            return p.as_posix()
+        if relativa == os.pardir or relativa.startswith(os.pardir + os.sep):
+            return p.as_posix()
+        p = Path(relativa)
+    return Path(os.path.normpath(p)).as_posix()
+
+
 def hallazgo(
     herramienta: str,
     codigo: str,
@@ -92,12 +126,14 @@ def hallazgo(
     severidad: str,
     mensaje: str,
     *,
-    archivo: str | None = None,
+    archivo: str | os.PathLike[str] | None = None,
     linea: int | None = None,
     columna: int | None = None,
     sugerencia: str | None = None,
+    explicacion: str | None = None,
 ) -> dict[str, Any]:
-    """Un hallazgo con la forma común (ver el docstring del módulo)."""
+    """Un hallazgo con la forma común (ver el docstring del módulo). `explicacion` es el por qué
+    en español (lo que jonesy muestra con F1); `sugerencia`, qué hacer."""
     if categoria not in CATEGORIAS:
         raise ValueError(f"categoría «{categoria}» desconocida: usá {', '.join(CATEGORIAS)}")
     datos: dict[str, Any] = {
@@ -107,14 +143,131 @@ def hallazgo(
         "categoria": categoria,
         "severidad": normalizar_severidad(severidad),
         "mensaje": mensaje,
-        "archivo": archivo,
+        "archivo": ruta_archivo(archivo),
         "linea": linea,
         "columna": columna,
         "enlace": enlace_apunte(categoria, codigo),
     }
     if sugerencia:
         datos["sugerencia"] = sugerencia
+    if explicacion:
+        datos["explicacion"] = explicacion
     return datos
+
+
+# clave: (tipos JSON aceptados, obligatoria).
+CLAVES: dict[str, tuple[tuple[type, ...], bool]] = {
+    "id": ((str,), True),
+    "herramienta": ((str,), True),
+    "codigo": ((str,), True),
+    "categoria": ((str,), True),
+    "severidad": ((str,), True),
+    "mensaje": ((str,), True),
+    "archivo": ((str, type(None)), True),
+    "linea": ((int, type(None)), True),
+    "columna": ((int, type(None)), True),
+    "enlace": ((str, type(None)), True),
+    "sugerencia": ((str,), False),
+    "explicacion": ((str,), False),
+}
+
+
+def validar_hallazgo(h: Any, base: str | os.PathLike[str] | None = None) -> list[str]:
+    """Los problemas de un hallazgo respecto de la forma común (vacía si cumple). Con `base`, una
+    ruta absoluta que está adentro de `base` también es un problema: debió ser relativa."""
+    if not isinstance(h, dict):
+        return ["no es un objeto"]
+    problemas = []
+    for clave, (tipos, obligatoria) in CLAVES.items():
+        if clave not in h:
+            if obligatoria:
+                problemas.append(f"falta «{clave}»")
+            continue
+        valor = h[clave]
+        if not isinstance(valor, tipos) or isinstance(valor, bool):
+            problemas.append(f"«{clave}» tiene un tipo inválido ({type(valor).__name__})")
+    if problemas:
+        return problemas
+    if h["severidad"] not in SEVERIDADES:
+        problemas.append(f"severidad «{h['severidad']}» fuera de {', '.join(SEVERIDADES)}")
+    if h["categoria"] not in CATEGORIAS:
+        problemas.append(f"categoría «{h['categoria']}» desconocida")
+    if h["id"] != f"{h['herramienta']}:{h['codigo']}":
+        problemas.append(f"el id «{h['id']}» no es «herramienta:codigo»")
+    for clave in ("linea", "columna"):
+        if h[clave] is not None and h[clave] < 1:
+            problemas.append(f"«{clave}» empieza en 1 (vale {h[clave]})")
+    archivo = h["archivo"]
+    if archivo is not None:
+        if not archivo or "\\" in archivo or archivo.startswith("./") or "/./" in archivo:
+            problemas.append(f"«archivo» no está normalizada: «{archivo}»")
+        elif base is not None and Path(archivo).is_absolute() and ruta_archivo(archivo, base) != archivo:
+            problemas.append(f"«archivo» debería ser relativa: «{archivo}»")
+    return problemas
+
+
+def validar_salida(datos: Any, base: str | os.PathLike[str] | None = None) -> list[str]:
+    """Los problemas de la salida `--json` de una herramienta: tiene que traer la lista plana
+    `hallazgos` y cada uno, la forma común (`validar_hallazgo`)."""
+    if not isinstance(datos, dict):
+        return ["la salida no es un objeto JSON"]
+    lista = datos.get("hallazgos")
+    if not isinstance(lista, list):
+        return ["la salida no tiene la lista «hallazgos»"]
+    return [f"hallazgos[{i}]: {p}" for i, h in enumerate(lista) for p in validar_hallazgo(h, base)]
+
+
+ESQUEMA: dict[str, Any] = {
+    "$schema": "https://json-schema.org/draft/2020-12/schema",
+    "$id": "https://github.com/INGCOM-UNRN-P1/yutani/hallazgo-v1.schema.json",
+    "title": "Hallazgo común del ecosistema de Programación 1",
+    "type": "object",
+    "required": [c for c, (_, obligatoria) in CLAVES.items() if obligatoria],
+    "properties": {
+        "id": {"type": "string", "pattern": "^[^:]+:.+$"},
+        "herramienta": {"type": "string"},
+        "codigo": {"type": "string"},
+        "categoria": {"enum": list(CATEGORIAS)},
+        "severidad": {"enum": list(SEVERIDADES)},
+        "mensaje": {"type": "string"},
+        "archivo": {"type": ["string", "null"], "pattern": "^(?!\\./)[^\\\\]+$"},
+        "linea": {"type": ["integer", "null"], "minimum": 1},
+        "columna": {"type": ["integer", "null"], "minimum": 1},
+        "enlace": {"type": ["string", "null"]},
+        "sugerencia": {"type": "string"},
+        "explicacion": {"type": "string"},
+    },
+}
+
+
+def main(argv: list[str] | None = None) -> int:
+    """`python -m yutani.hallazgos [salida.json ...]` (o la salida por stdin): valida la forma
+    común; sale con 1 y lista los problemas si alguna no cumple. `--esquema` imprime el
+    JSON Schema."""
+    args = sys.argv[1:] if argv is None else argv
+    if args == ["--esquema"]:
+        print(json.dumps(ESQUEMA, indent=2, ensure_ascii=False))
+        return 0
+    fuentes = args or ["-"]
+    total = 0
+    for fuente in fuentes:
+        texto = sys.stdin.read() if fuente == "-" else Path(fuente).read_text(encoding="utf-8")
+        inicio = texto.find("{")
+        try:
+            datos = json.loads(texto[inicio:]) if inicio >= 0 else None
+        except json.JSONDecodeError as e:
+            print(f"{fuente}: no es JSON ({e})", file=sys.stderr)
+            total += 1
+            continue
+        problemas = validar_salida(datos, Path.cwd())
+        for p in problemas:
+            print(f"{fuente}: {p}", file=sys.stderr)
+        total += len(problemas)
+    return 1 if total else 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
 
 
 def resumen_por_categoria(hallazgos: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:

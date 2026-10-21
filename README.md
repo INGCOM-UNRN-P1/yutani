@@ -11,6 +11,7 @@ herramientas**, para que yutani no se convierta en otro monolito.
 | `yutani.cli` | App Typer con el contrato de LINEAMIENTOS §3.2: `-h/--help`, `--version/-v`, y `TyperConErrores`, que muestra los errores de datos (YAML mal formado, ruta inexistente, archivo que ya existe…) como un mensaje en español con exit 1 en lugar de un traceback | Contrato copiado en 41 herramientas (N-ECO-04); `errores.py` copiado en deckard, scorm-tools y dredd (N-ECO-05) |
 | `yutani.doctor` | Chequeos de binarios y módulos, tabla legible y `doctor --json` con el sobre común (`schema_version`, `ok`, `chequeos`) | Un doctor distinto por herramienta |
 | `yutani.report` | Sobre JSON versionado (`sobre`, `emitir_json`) y secciones para dredd (`<!-- dredd-section: … -->`) con su lector | Encabezado copiado en 28 herramientas |
+| `yutani.hallazgos` | La forma común de cada hallazgo (`id`, `herramienta`, `codigo`, `categoria`, `severidad`, `mensaje`, `archivo`, `linea`, `columna`, `enlace` y, opcionales, `sugerencia` y `explicacion`) en una lista plana `hallazgos`; `archivo` relativo al directorio de trabajo con `/` (`ruta_archivo`); `validar_salida` y `ESQUEMA` (JSON Schema) para verificarla | Un esquema por herramienta (gaff con `violaciones`, daedalus con `diagnosticos`, tetsuo con `diagnoses`…) y rutas absolutas, relativas o sólo el nombre |
 | `yutani.textos` | Ayuda y errores de Typer/Click en español («Uso: … [OPCIONES] COMANDO [ARGUMENTOS]...», «Comandos», «Falta el argumento…», «No existe el comando…», la ayuda de `--install-completion`/`--show-completion`) | N-ECO-14 |
 | `yutani.testing` | Test de contrato parametrizado para pegar en cada repo | `tests/test_contrato_cli.py` copiado en 38 repos |
 | `yutani.ia` | Modelos de lenguaje con una interfaz (`cliente().generar(prompt, sistema=…)`, `modelos()`) y una configuración comunes: Gemini, un servidor local con la API de OpenAI (Ollama, llama.cpp, LM Studio, vLLM), OpenCode o Claude; `diagnostico()` para el doctor | El cliente de Gemini/Claude de voight y el de OpenCode de deckard. Excepción a la regla de las tres herramientas: entra por pedido explícito de unificar el uso de IA |
@@ -63,6 +64,14 @@ from yutani.testing import pruebas_de_contrato
 from mi_herramienta.cli import app
 
 test_ayuda, test_version, test_doctor_json = pruebas_de_contrato(app)
+```
+
+Para verificar la salida `--json` de cualquier analizador contra la forma común de los
+hallazgos (lo hace el CI de punta a punta de p1-tools):
+
+```bash
+gaff check main.c --json | python -m yutani.hallazgos      # sale con 1 y lista los problemas
+python -m yutani.hallazgos --esquema > hallazgo.schema.json
 ```
 
 ## Desarrollo
