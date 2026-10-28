@@ -88,10 +88,11 @@ def test_validar_salida():
 
 
 def test_validar_ruta_absoluta_adentro_del_directorio(tmp_path):
+    archivo_abs = (tmp_path / "x.c").as_posix()
     h = hallazgo("hal", "acceso-invalido", "punteros", "error", "m", archivo="x.c")
-    h["archivo"] = str(tmp_path / "x.c")
+    h["archivo"] = archivo_abs
     assert validar_hallazgo(h) == []
-    assert validar_hallazgo(h, tmp_path) == [f"«archivo» debería ser relativa: «{tmp_path / 'x.c'}»"]
+    assert validar_hallazgo(h, tmp_path) == [f"«archivo» debería ser relativa: «{archivo_abs}»"]
 
 
 def test_esquema_y_linea_de_comandos(tmp_path, capsys):
