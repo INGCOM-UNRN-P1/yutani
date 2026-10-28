@@ -39,6 +39,10 @@ testing = ["pytest>=8.0"]
 google = ["google-genai>=2.4.0"]
 claude = ["anthropic>=1.11.0"]
 
+[project.scripts]
+# `yutani env-check`: lo común del entorno para todas las herramientas (Ola 26).
+yutani = "yutani.entorno:main"
+
 [project.urls]
 Homepage = "https://github.com/INGCOM-UNRN-P1/yutani"
 Repository = "https://github.com/INGCOM-UNRN-P1/yutani.git"

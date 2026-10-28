@@ -74,6 +74,20 @@ gaff check main.c --json | python -m yutani.hallazgos      # sale con 1 y lista 
 python -m yutani.hallazgos --esquema > hallazgo.schema.json
 ```
 
+## Diagnóstico común del entorno (`yutani env-check`)
+
+Lo que necesitan todas las herramientas, con la versión mínima cuando hay una razón concreta:
+gcc ≥ 10 (`-fanalyzer`), Python ≥ 3.11 (`requires-python`), uv ≥ 0.4.27 (`dependency-groups`,
+PEP 735); make, gdb, valgrind y clang presentes. También verifica que la carpeta de `uv tool`
+esté en el PATH y muestra las variables P1 definidas (`P1_PISTA`, `P1_IA_CONFIG`…, los PIN
+sin su valor). Sale con 1 si falta algo requerido; `--json` da el mismo sobre que `doctor`.
+
+```bash
+uvx --from git+https://github.com/INGCOM-UNRN-P1/yutani yutani env-check
+```
+
+Cada herramienta sigue teniendo su `doctor` con lo propio.
+
 ## Desarrollo
 
 ```bash
