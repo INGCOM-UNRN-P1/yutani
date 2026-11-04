@@ -1,5 +1,6 @@
 """`yutani env-check`: versiones mínimas del sistema y variables del ecosistema (Ola 26)."""
 
+import os
 import json
 
 from typer.testing import CliRunner
@@ -43,7 +44,8 @@ def test_python():
 
 def test_path_de_uv():
     ejecutar = lambda a: "/home/ana/.local/bin"  # noqa: E731
-    assert chequear_path_de_uv(ejecutar, path="/usr/bin:/home/ana/.local/bin", which=lambda n: "/usr/bin/uv").ok
+    path = os.pathsep.join(["/usr/bin", "/home/ana/.local/bin"])
+    assert chequear_path_de_uv(ejecutar, path=path, which=lambda n: "/usr/bin/uv").ok
     falta = chequear_path_de_uv(ejecutar, path="/usr/bin", which=lambda n: "/usr/bin/uv")
     assert not falta.ok and "update-shell" in falta.sugerencia
 
